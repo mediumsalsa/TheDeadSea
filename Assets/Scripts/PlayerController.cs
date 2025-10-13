@@ -2,10 +2,10 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// Handles player movement, combat, and input.
-/// Manages aiming, rolling, melee attacks, and ranged attacks.
+/// Handles player movement, combat, animations, and input.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(Animator))] // Ensure Animator component is present
 public class PlayerController : MonoBehaviour
 {
     [Header("Movement Settings")]
@@ -46,15 +46,20 @@ public class PlayerController : MonoBehaviour
 
     [Header("Melee Attack")]
     [SerializeField]
+    [Tooltip("The point from where the melee attack originates.")]
+    private Transform meleeAttackPoint;
+    [SerializeField]
     [Tooltip("The visual prefab for the sword swing.")]
-    private GameObject swordSwingVisualPrefab; // NEW FIELD
+    private GameObject swordSwingVisualPrefab;
     [SerializeField]
     [Tooltip("Cooldown for melee attacks.")]
     private float meleeAttackCooldown = 0.4f;
 
-    // Private state variables
+    // --- Component & State Variables ---
     private Rigidbody2D rb;
     private Camera mainCamera;
+    private Animator animator;
+    private SpriteRenderer spriteRenderer;
     private Vector2 moveInput;
     private Vector2 mousePosition;
 
@@ -70,6 +75,13 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         mainCamera = Camera.main;
+        animator = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (spriteRenderer == null)
+        {
+            Debug.LogError("PlayerController requires a SpriteRenderer component on the same GameObject.");
+        }
 
         rb.freezeRotation = true;
         rb.gravityScale = 0;
@@ -88,9 +100,20 @@ public class PlayerController : MonoBehaviour
         // --- Input Handling ---
         moveInput.x = Input.GetAxisRaw("Horizontal");
         moveInput.y = Input.GetAxisRaw("Vertical");
+
+        // --- Animation & Sprite Logic ---
+        UpdateAnimationAndSpriteFlip();
+
+        // Normalize after checking magnitude to ensure diagonal speed is correct
         moveInput.Normalize();
 
         mousePosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+
+        // --- Aiming Logic ---
+        // Moved from FixedUpdate to ensure rotation is calculated before attack input
+        Vector2 aimDirection = mousePosition - (Vector2)aimPivot.position;
+        float aimAngle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
+        aimPivot.rotation = Quaternion.Euler(0, 0, aimAngle);
 
         // --- Action Inputs ---
         if (Input.GetKeyDown(KeyCode.Space) && rollCooldownTimer <= 0)
@@ -109,15 +132,39 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// REWORKED: Handles updating blend tree parameters and flipping the sprite.
+    /// </summary>
+    private void UpdateAnimationAndSpriteFlip()
+    {
+        bool isCurrentlyMoving = moveInput.magnitude > 0.1f;
+        animator.SetBool("isMoving", isCurrentlyMoving);
+
+        if (isCurrentlyMoving)
+        {
+            // Pass the raw input values to the blend tree.
+            animator.SetFloat("moveX", moveInput.x);
+            animator.SetFloat("moveY", moveInput.y);
+
+            // Sprite flipping for horizontal direction.
+            // The blend tree handles up/down, we just need to flip for left.
+            if (moveInput.x > 0.1f)
+            {
+                spriteRenderer.flipX = false;
+            }
+            else if (moveInput.x < -0.1f)
+            {
+                spriteRenderer.flipX = true;
+            }
+        }
+    }
+
+
     void FixedUpdate()
     {
         if (isRolling) return; // Movement is handled by the Roll coroutine
 
-        // --- Aiming Logic ---
-        // Rotates the aimPivot to point at the mouse cursor.
-        Vector2 aimDirection = mousePosition - (Vector2)aimPivot.position;
-        float aimAngle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
-        aimPivot.rotation = Quaternion.Euler(0, 0, aimAngle);
+        // --- Aiming Logic has been moved to Update() ---
 
         // --- Movement ---
         rb.velocity = moveInput * moveSpeed;
@@ -127,8 +174,8 @@ public class PlayerController : MonoBehaviour
     {
         isRolling = true;
         rollCooldownTimer = rollCooldown;
+        animator.SetBool("isMoving", false); // Stop move animation during roll
 
-        // Use movement input for roll direction, or aim direction if standing still
         Vector2 rollDirection = moveInput != Vector2.zero ? moveInput : ((Vector2)(aimPivot.right)).normalized;
         rb.velocity = rollDirection * rollSpeed;
 
@@ -142,17 +189,11 @@ public class PlayerController : MonoBehaviour
         meleeCooldownTimer = meleeAttackCooldown;
         Debug.Log("Swing Sword!");
 
-        if (swordSwingVisualPrefab != null && aimPivot != null)
+        if (swordSwingVisualPrefab != null && meleeAttackPoint != null)
         {
-            // Instantiate the sword swing visual at the aimPivot's position and rotation
-            // The SwordSwingVisual script will handle its own lifetime and hit detection.
-            GameObject swing = Instantiate(swordSwingVisualPrefab, aimPivot.position, aimPivot.rotation);
-            // Parent it to the aimPivot so it moves with the player and maintains its rotation relative to the aim.
-            swing.transform.parent = aimPivot;
-        }
-        else
-        {
-            Debug.LogWarning("Sword Swing Visual Prefab or Aim Pivot is not assigned!");
+            // Spawn the swing visual at the dedicated attack point's position
+            // using the aim pivot's rotation, just like the ranged attack.
+            Instantiate(swordSwingVisualPrefab, meleeAttackPoint.position, aimPivot.rotation);
         }
     }
 
@@ -172,13 +213,9 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// This method is called when the player's collider makes contact with another collider.
-    /// It's primarily used for pushing physics-based objects now.
-    /// </summary>
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (isRolling) return; // Don't push things while rolling
+        if (isRolling) return;
 
         Rigidbody2D hitRb = collision.collider.attachedRigidbody;
 

@@ -135,6 +135,7 @@ GameObject:
   - component: {fileID: 350279953}
   - component: {fileID: 350279952}
   - component: {fileID: 350279951}
+  - component: {fileID: 350279956}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -164,6 +165,7 @@ MonoBehaviour:
   knifeSpawnPoint: {fileID: 1905459456}
   knifeThrowForce: 20
   knifeThrowCooldown: 0.5
+  meleeAttackPoint: {fileID: 636338912}
   swordSwingVisualPrefab: {fileID: 590284410779487051, guid: 47056fe6076fc9941beb276f64649683, type: 3}
   meleeAttackCooldown: 0.4
 --- !u!50 &350279952
@@ -189,7 +191,7 @@ Rigidbody2D:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
@@ -225,9 +227,9 @@ CircleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: -0.0033869147, y: -0.2675619}
   serializedVersion: 2
-  m_Radius: 0.32
+  m_Radius: 0.32000005
 --- !u!212 &350279954
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -269,7 +271,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: bb49e6d21488ca24f8b6dec6a49afc5f, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 05693b56a43a5b64e94c66b5673a512d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -296,6 +298,27 @@ Transform:
   - {fileID: 1484536809}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!95 &350279956
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 350279950}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 9b4950a73d5d4a5479b45cf331fe9cff, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &454998243
 GameObject:
   m_ObjectHideFlags: 0
@@ -341,7 +364,7 @@ Rigidbody2D:
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
   m_Mass: 2
-  m_LinearDrag: 5
+  m_LinearDrag: 15
   m_AngularDrag: 0.05
   m_GravityScale: 0
   m_Material: {fileID: 0}
@@ -387,9 +410,9 @@ CircleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 0, y: -0.0734576}
   serializedVersion: 2
-  m_Radius: 0.32
+  m_Radius: 0.40911913
 --- !u!212 &454998247
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -563,7 +586,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 350279955}
-  smoothSpeed: 0.125
+  smoothSpeed: 0.2
   offset: {x: 0, y: 0, z: -10}
 --- !u!1 &636338911
 GameObject:
@@ -590,7 +613,7 @@ Transform:
   m_GameObject: {fileID: 636338911}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.885, y: -0.385, z: 0}
+  m_LocalPosition: {x: 0.202, y: 0.008, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -621,8 +644,8 @@ Transform:
   m_GameObject: {fileID: 1484536808}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.07355345, y: 0.38620684, z: 0.07683578}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.01, y: -0.14, z: 0.07683578}
+  m_LocalScale: {x: 7, y: 7, z: 7}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 636338912}
@@ -654,7 +677,7 @@ Transform:
   m_GameObject: {fileID: 1905459455}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.154, y: -0.385, z: 0}
+  m_LocalPosition: {x: 0.02, y: -0.01, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

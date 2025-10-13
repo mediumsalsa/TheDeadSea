@@ -173,5 +173,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lifetime: 3
   enemyTag: Enemy
-  knockbackForce: 2
+  knockbackForce: 6
   destroyOnCollision: 1
