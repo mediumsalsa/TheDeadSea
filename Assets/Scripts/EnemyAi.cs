@@ -1,5 +1,5 @@
 using UnityEngine;
-using System.Collections; // Needed for Coroutines
+using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class EnemyAI : MonoBehaviour
@@ -16,10 +16,13 @@ public class EnemyAI : MonoBehaviour
     [SerializeField]
     [Tooltip("The attack action component for this enemy.")]
     private EnemyMeleeAttacker meleeAttacker;
+    [SerializeField]
+    [Tooltip("The pivot point that rotates to face the player.")]
+    private Transform aimPivot;
 
     private Transform playerTransform;
     private Rigidbody2D rb;
-    private bool isKnockedBack = false; // Flag to pause AI during knockback
+    private bool isKnockedBack = false;
 
     void Start()
     {
@@ -41,8 +44,10 @@ public class EnemyAI : MonoBehaviour
 
     void Update()
     {
-        // If knocked back, the AI does nothing until the coroutine finishes
         if (isKnockedBack || playerTransform == null) return;
+
+        // --- NEW: Handle aiming direction ---
+        AimAtPlayer();
 
         float distanceToPlayer = Vector2.Distance(transform.position, playerTransform.position);
 
@@ -89,7 +94,6 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    // This public method will be called by EnemyKnockback
     public void StartKnockback(float duration)
     {
         if (!isKnockedBack)
@@ -101,9 +105,17 @@ public class EnemyAI : MonoBehaviour
     private IEnumerator KnockbackCoroutine(float duration)
     {
         isKnockedBack = true;
-        // The knockback force is applied by the other script
         yield return new WaitForSeconds(duration);
         isKnockedBack = false;
+    }
+
+    private void AimAtPlayer()
+    {
+        if (aimPivot == null) return;
+
+        Vector2 direction = (playerTransform.position - aimPivot.position).normalized;
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        aimPivot.rotation = Quaternion.Euler(0, 0, angle);
     }
 
     private void ChasePlayer()
