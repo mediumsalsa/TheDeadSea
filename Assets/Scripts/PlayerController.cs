@@ -191,9 +191,17 @@ public class PlayerController : MonoBehaviour
 
         if (swordSwingVisualPrefab != null && meleeAttackPoint != null)
         {
-            // Spawn the swing visual at the dedicated attack point's position
-            // using the aim pivot's rotation, just like the ranged attack.
-            Instantiate(swordSwingVisualPrefab, meleeAttackPoint.position, aimPivot.rotation);
+            // Instantiate the swing and keep a reference to it
+            GameObject swingVisualObject = Instantiate(swordSwingVisualPrefab, meleeAttackPoint.position, aimPivot.rotation);
+
+            // Get the script component from the newly created swing visual
+            SwordSwingVisual swingScript = swingVisualObject.GetComponent<SwordSwingVisual>();
+
+            // If the script was found, pass our player's transform to it
+            if (swingScript != null)
+            {
+                swingScript.playerTransform = this.transform;
+            }
         }
     }
 

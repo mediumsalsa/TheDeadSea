@@ -1,79 +1,70 @@
 using UnityEngine;
 
-/// <summary>
-/// Controls the behavior of a projectile, such as a throwing knife.
-/// Handles movement, lifetime, and collision with enemies or the environment.
-/// </summary>
-[RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
 public class Projectile : MonoBehaviour
 {
-    [Header("Projectile Settings")]
-    [Tooltip("How long the projectile exists before being destroyed if it hits nothing.")]
-    [SerializeField] private float lifetime = 3f;
-    [Tooltip("The tag assigned to enemy GameObjects.")]
-    [SerializeField] private string enemyTag = "Enemy";
-    [Tooltip("The force of the knockback applied to enemies.")]
-    [SerializeField] private float knockbackForce = 10f;
-    [Tooltip("Should the projectile be destroyed when it hits any solid object?")]
-    [SerializeField] private bool destroyOnCollision = true;
+    [SerializeField]
+    [Tooltip("The force applied to enemies upon impact.")]
+    private float knockbackForce = 10f;
+    [SerializeField]
+    [Tooltip("Should the projectile be destroyed when it hits a solid object like a wall?")]
+    private bool destroyOnCollision = true;
+
+    // --- NEW: Component reference ---
+    private Rigidbody2D rb;
 
     void Start()
     {
-        // Destroy the projectile after its lifetime expires as a fallback.
-        Destroy(gameObject, lifetime);
+        // --- NEW: Get the Rigidbody2D component ---
+        rb = GetComponent<Rigidbody2D>();
+        if (rb == null)
+        {
+            Debug.LogError("Projectile is missing a Rigidbody2D component!");
+        }
+
+        // Make sure the projectile is destroyed after some time in case it never goes off-screen
+        Destroy(gameObject, 10f);
     }
 
-    /// <summary>
-    /// Called when the projectile's collider enters another trigger collider.
-    /// This is ideal for hitting enemies.
-    /// </summary>
-    private void OnTriggerEnter2D(Collider2D other)
+    // --- NEW: Update method to handle rotation ---
+    void Update()
     {
-        // Check if the object we hit is an enemy.
-        if (other.CompareTag(enemyTag))
+        // Check if the rigidbody exists and has a significant velocity
+        if (rb != null && rb.velocity.sqrMagnitude > 0.1f)
         {
-            Debug.Log("Projectile hit: " + other.name);
-
-            // --- Apply Damage and Effects ---
-            // e.g., other.GetComponent<EnemyHealth>().TakeDamage(10);
-
-            // --- Apply Knockback ---
-            EnemyKnockback enemyKnockback = other.GetComponent<EnemyKnockback>();
-            if (enemyKnockback != null)
-            {
-                // Use the projectile's velocity to determine the direction of knockback.
-                Rigidbody2D selfRb = GetComponent<Rigidbody2D>();
-                if (selfRb != null)
-                {
-                    enemyKnockback.ApplyKnockback(selfRb.velocity.normalized, knockbackForce);
-                }
-            }
-
-            // Destroy the projectile on impact with an enemy.
-            Destroy(gameObject);
+            // Calculate the angle from the velocity vector
+            float angle = Mathf.Atan2(rb.velocity.y, rb.velocity.x) * Mathf.Rad2Deg;
+            // Set the rotation of the projectile to face its direction of movement
+            transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
         }
     }
 
-    /// <summary>
-    /// Called when the projectile's collider makes contact with a solid (non-trigger) collider.
-    /// Useful for hitting walls or other obstacles.
-    /// </summary>
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        // If destroyOnCollision is enabled, destroy the projectile when it hits any solid object.
-        if (destroyOnCollision)
-        {
-            // We can add effects here later, like sparks or a "thud" sound.
-            Destroy(gameObject);
-        }
-    }
-
-    /// <summary>
-    /// This function is called by Unity when the object is no longer visible by any camera.
-    /// It's an efficient way to clean up projectiles that fly off-screen.
-    /// </summary>
     void OnBecameInvisible()
     {
+        // Destroy the projectile once it's off-screen to save resources
         Destroy(gameObject);
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        // Apply knockback if it hits an enemy
+        if (other.CompareTag("Enemy"))
+        {
+            EnemyKnockback enemy = other.GetComponent<EnemyKnockback>();
+            if (enemy != null)
+            {
+                Vector2 knockbackDirection = (other.transform.position - transform.position).normalized;
+                enemy.ApplyKnockback(knockbackDirection, knockbackForce);
+            }
+            Destroy(gameObject); // Destroy the knife after hitting an enemy
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        // Destroy if it hits a solid object (like a wall)
+        if (destroyOnCollision)
+        {
+            Destroy(gameObject);
+        }
     }
 }

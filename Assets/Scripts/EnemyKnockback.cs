@@ -1,30 +1,31 @@
 using UnityEngine;
 
-/// <summary>
-/// Manages physics-based knockback for an enemy character.
-/// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 public class EnemyKnockback : MonoBehaviour
 {
-    private Rigidbody2D rb;
+    [SerializeField]
+    [Tooltip("How long the AI is disabled after being hit.")]
+    private float knockbackDuration = 0.2f;
 
-    void Awake()
+    private Rigidbody2D rb;
+    private EnemyAI enemyAI; // Reference to the AI script
+
+    private void Start()
     {
-        // Get the Rigidbody2D component.
         rb = GetComponent<Rigidbody2D>();
-        // Set properties for a typical top-down physics object.
-        rb.gravityScale = 0;
-        rb.freezeRotation = true;
+        enemyAI = GetComponent<EnemyAI>(); // Get the AI component on this enemy
     }
 
-    /// <summary>
-    /// Applies a force to this Rigidbody to simulate knockback.
-    /// </summary>
-    /// <param name="direction">The direction the knockback should be applied in.</param>
-    /// <param name="force">The magnitude of the knockback force.</param>
     public void ApplyKnockback(Vector2 direction, float force)
     {
-        // We use Impulse mode to apply an instant force, creating a sudden knockback effect.
+        // Stop the enemy's current movement before applying new force
+        rb.velocity = Vector2.zero;
         rb.AddForce(direction * force, ForceMode2D.Impulse);
+
+        // Tell the AI script to pause its logic
+        if (enemyAI != null)
+        {
+            enemyAI.StartKnockback(knockbackDuration);
+        }
     }
 }
