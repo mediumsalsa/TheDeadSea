@@ -172,5 +172,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   swingDuration: 0.2
-  enemyTag: Enemy
-  knockbackForce: 30
+  knockbackForce: 60
+  playerTransform: {fileID: 0}

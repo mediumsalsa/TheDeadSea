@@ -4,137 +4,165 @@ using System.Collections;
 [RequireComponent(typeof(Rigidbody2D))]
 public class EnemyAI : MonoBehaviour
 {
-    private enum State { Idle, Chasing, Attacking }
-    private State currentState;
-
-    [Header("AI Parameters")]
-    [SerializeField] private float moveSpeed = 2f;
-    [SerializeField] private float chaseRange = 8f;
-    [SerializeField] private float attackRange = 1.5f;
-
     [Header("References")]
     [SerializeField]
-    [Tooltip("The attack action component for this enemy.")]
-    private EnemyMeleeAttacker meleeAttacker;
-    [SerializeField]
-    [Tooltip("The pivot point that rotates to face the player.")]
-    private Transform aimPivot;
-
+    [Tooltip("The player GameObject for the enemy to target.")]
     private Transform playerTransform;
+    [SerializeField]
+    [Tooltip("The rotating part of the enemy that holds the attack point.")]
+    private Transform aimPivot;
+    [SerializeField]
+    [Tooltip("A reference to the melee attacker script, if this enemy has one.")]
+    private EnemyMeleeAttacker meleeAttacker;
+    private Animator animator; // Reference to the Animator component
+    private SpriteRenderer spriteRenderer; // Reference to the sprite renderer for flipping
+
+    [Header("AI Settings")]
+    [SerializeField]
+    [Tooltip("The distance at which the enemy will start chasing the player.")]
+    private float chaseDistance = 10f;
+    [SerializeField]
+    [Tooltip("The distance at which the enemy will stop and attack.")]
+    private float attackRange = 1.5f;
+    [SerializeField]
+    [Tooltip("How fast the enemy moves.")]
+    private float moveSpeed = 3f;
+
     private Rigidbody2D rb;
     private bool isKnockedBack = false;
+    private bool isAttacking = false; // New state to prevent movement during an attack
+    private Vector2 directionToPlayer; // Store direction for aiming when idle
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        animator = GetComponentInChildren<Animator>();
+        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        if (animator == null)
         {
-            playerTransform = player.transform;
-        }
-        else
-        {
-            Debug.LogError("Player not found! Make sure the player has the 'Player' tag.");
-            this.enabled = false;
+            Debug.LogError("EnemyAI Error: Animator component not found on this object or its children!", this);
         }
 
-        currentState = State.Idle;
+        if (playerTransform == null)
+        {
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                playerTransform = player.transform;
+            }
+            else
+            {
+                Debug.LogError("EnemyAI Error: Player transform not found! Make sure the player has the 'Player' tag.", this);
+                this.enabled = false;
+            }
+        }
     }
 
     void Update()
     {
-        if (isKnockedBack || playerTransform == null) return;
-
-        // --- NEW: Handle aiming direction ---
-        AimAtPlayer();
+        // AI logic is now paused if knocked back OR if in the middle of an attack
+        if (playerTransform == null || isKnockedBack || isAttacking)
+        {
+            if (isAttacking) rb.velocity = Vector2.zero; // Ensure the enemy stops while attacking
+            return;
+        }
 
         float distanceToPlayer = Vector2.Distance(transform.position, playerTransform.position);
+        directionToPlayer = (playerTransform.position - transform.position).normalized;
 
-        // State Transition Logic
-        switch (currentState)
+        if (distanceToPlayer <= chaseDistance)
         {
-            case State.Idle:
-                if (distanceToPlayer < chaseRange)
+            AimAtPlayer(directionToPlayer);
+
+            if (distanceToPlayer > attackRange)
+            {
+                rb.velocity = directionToPlayer * moveSpeed;
+            }
+            else
+            {
+                rb.velocity = Vector2.zero;
+                if (meleeAttacker != null)
                 {
-                    currentState = State.Chasing;
+                    // The AI's only job is to request an attack.
+                    // The MeleeAttacker script will handle the timing and execution.
+                    meleeAttacker.AttemptAttack();
                 }
-                break;
-            case State.Chasing:
-                if (distanceToPlayer <= attackRange)
-                {
-                    currentState = State.Attacking;
-                }
-                else if (distanceToPlayer > chaseRange)
-                {
-                    currentState = State.Idle;
-                }
-                break;
-            case State.Attacking:
-                if (distanceToPlayer > attackRange)
-                {
-                    currentState = State.Chasing;
-                }
-                break;
+            }
+        }
+        else
+        {
+            rb.velocity = Vector2.zero;
         }
 
-        // State Action Logic
-        switch (currentState)
-        {
-            case State.Chasing:
-                ChasePlayer();
-                break;
-            case State.Attacking:
-                AttackPlayer();
-                break;
-            case State.Idle:
-            default:
-                StopMovement();
-                break;
-        }
+        UpdateAnimationAndSpriteFlip();
     }
 
-    public void StartKnockback(float duration)
+    private void UpdateAnimationAndSpriteFlip()
     {
-        if (!isKnockedBack)
+        if (animator == null || spriteRenderer == null) return;
+
+        bool isMoving = rb.velocity.sqrMagnitude > 0.1f;
+        animator.SetBool("isMoving", isMoving);
+
+        if (isMoving)
         {
-            StartCoroutine(KnockbackCoroutine(duration));
+            // --- Animate and flip based on MOVEMENT direction ---
+            animator.SetFloat("moveX", rb.velocity.x);
+            animator.SetFloat("moveY", rb.velocity.y);
+
+            // Flip based on the actual direction of movement
+            if (rb.velocity.x < -0.1f)
+            {
+                spriteRenderer.flipX = true;
+            }
+            else if (rb.velocity.x > 0.1f)
+            {
+                spriteRenderer.flipX = false;
+            }
+        }
+        else
+        {
+            // --- When idle, flip based on AIM direction to face the player ---
+            if (directionToPlayer.x < -0.01f)
+            {
+                spriteRenderer.flipX = true;
+            }
+            else if (directionToPlayer.x > 0.01f)
+            {
+                spriteRenderer.flipX = false;
+            }
         }
     }
 
-    private IEnumerator KnockbackCoroutine(float duration)
+    private void AimAtPlayer(Vector2 direction)
+    {
+        if (aimPivot != null)
+        {
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            aimPivot.rotation = Quaternion.Euler(0, 0, angle);
+        }
+    }
+
+    /// <summary>
+    /// A public method allowing other scripts (like the MeleeAttacker) to control the AI's state.
+    /// </summary>
+    public void SetAttacking(bool state)
+    {
+        isAttacking = state;
+    }
+
+    public void StartKnockback(float knockbackDuration)
+    {
+        StartCoroutine(KnockbackCoroutine(knockbackDuration));
+    }
+
+    private IEnumerator KnockbackCoroutine(float knockbackDuration)
     {
         isKnockedBack = true;
-        yield return new WaitForSeconds(duration);
+        yield return new WaitForSeconds(knockbackDuration);
         isKnockedBack = false;
     }
-
-    private void AimAtPlayer()
-    {
-        if (aimPivot == null) return;
-
-        Vector2 direction = (playerTransform.position - aimPivot.position).normalized;
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        aimPivot.rotation = Quaternion.Euler(0, 0, angle);
-    }
-
-    private void ChasePlayer()
-    {
-        Vector2 direction = (playerTransform.position - transform.position).normalized;
-        rb.velocity = direction * moveSpeed;
-    }
-
-    private void AttackPlayer()
-    {
-        rb.velocity = Vector2.zero;
-        if (meleeAttacker != null)
-        {
-            meleeAttacker.PerformAttack(playerTransform);
-        }
-    }
-
-    private void StopMovement()
-    {
-        rb.velocity = Vector2.zero;
-    }
 }
+
+
